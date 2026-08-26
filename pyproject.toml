@@ -1,0 +1,10 @@
+[project]
+name = "labelconv"
+version = "0.1.0"
+description = "Convert shipping label CSV exports into ZPL for thermal printers"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
