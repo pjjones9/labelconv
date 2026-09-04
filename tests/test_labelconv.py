@@ -1,7 +1,8 @@
+import dataclasses
 import unittest
 
 from labelconv.record import LabelRecordError, ShippingLabel, parse_row
-from labelconv.zpl import build_zpl, escape_field
+from labelconv.zpl import ZplParseError, build_zpl, escape_field, parse_zpl, unescape_field
 
 BASE_ROW = {
     "recipient_name": "Jane Doe",
@@ -46,6 +47,21 @@ class TestEscapeField(unittest.TestCase):
                 escaped, needs_hex = escape_field(text)
                 self.assertEqual(escaped, expected)
                 self.assertEqual(needs_hex, expected_needs_hex)
+
+
+class TestUnescapeField(unittest.TestCase):
+    def test_table_round_trips_escape_field(self):
+        for description, text, escaped, needs_hex in ESCAPE_CASES:
+            with self.subTest(case=description):
+                self.assertEqual(unescape_field(escaped, needs_hex), text)
+
+    def test_plain_text_with_needs_hex_false_is_unchanged(self):
+        self.assertEqual(unescape_field("plain text", False), "plain text")
+
+    def test_trailing_underscore_without_hex_digits_is_kept_literal(self):
+        # Not a shape escape_field ever produces, but a parser reading
+        # arbitrary ^FH data shouldn't choke on it either.
+        self.assertEqual(unescape_field("trailing_", True), "trailing_")
 
 
 # Each case: (description, row overrides, expected exception or None).
@@ -117,6 +133,49 @@ class TestBuildZpl(unittest.TestCase):
         zpl = build_zpl(make_label())
         self.assertTrue(zpl.startswith("^XA"))
         self.assertTrue(zpl.endswith("^XZ"))
+
+
+class TestParseZpl(unittest.TestCase):
+    def assert_round_trips(self, label):
+        parsed = parse_zpl(build_zpl(label))
+        for field in dataclasses.fields(ShippingLabel):
+            if field.name == "service_level":
+                continue  # never written to the label, so not recoverable
+            self.assertEqual(
+                getattr(parsed, field.name), getattr(label, field.name), field.name
+            )
+
+    def test_round_trips_minimal_label(self):
+        self.assert_round_trips(make_label())
+
+    def test_round_trips_with_address2_and_order_number(self):
+        self.assert_round_trips(
+            make_label(address2="Apt 4B", order_number="PO-4471")
+        )
+
+    def test_round_trips_with_address2_only(self):
+        self.assert_round_trips(make_label(address2="Suite 200"))
+
+    def test_round_trips_with_order_number_only(self):
+        self.assert_round_trips(make_label(order_number="PO-4471"))
+
+    def test_round_trips_escaped_fields(self):
+        self.assert_round_trips(
+            make_label(recipient_name="A^B Corp", address1="Home~Away, first_last")
+        )
+
+    def test_round_trips_fractional_weight(self):
+        self.assert_round_trips(make_label(weight_oz=16.25))
+
+    def test_raises_on_unrelated_zpl(self):
+        with self.assertRaises(ZplParseError):
+            parse_zpl("^XA^FO0,0^A0N,10,10^FDjust one field^FS^XZ")
+
+    def test_raises_on_unparseable_weight_line(self):
+        label = make_label()
+        zpl = build_zpl(label).replace("16 oz", "sixteen ounces")
+        with self.assertRaises(ZplParseError):
+            parse_zpl(zpl)
 
 
 if __name__ == "__main__":

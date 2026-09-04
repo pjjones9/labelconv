@@ -55,11 +55,26 @@ Send the resulting string to a Zebra printer over raw TCP/9100, a USB queue,
 or whatever transport you're already using — this project only produces the
 ZPL text, it doesn't talk to printers.
 
+You can go the other way too, recovering a `ShippingLabel` from ZPL that
+`build_zpl` produced (useful for tests, or for re-reading a label you saved
+to disk):
+
+```python
+from labelconv import parse_zpl
+
+label = parse_zpl(zpl_text)
+```
+
+`parse_zpl` is a reverse of `build_zpl`'s specific layout, not a general ZPL
+reader — it expects the field order and line formats `build_zpl` uses.
+`service_level` isn't written to the label, so it always comes back empty.
+
 ## Status
 
 Handles the CSV -> ZPL direction for a standard 4x6 shipping label (name,
-address, weight, Code 128 tracking barcode, order number). No dependencies
-beyond the Python standard library.
+address, weight, Code 128 tracking barcode, order number), plus a ZPL -> CSV
+reverse parse for labels this project generated. No dependencies beyond the
+Python standard library.
 
 ## License
 
