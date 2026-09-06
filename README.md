@@ -51,6 +51,21 @@ label = ShippingLabel(
 print(build_zpl(label))
 ```
 
+`build_zpl` defaults to a 4x6 label at 203 dpi. For other stock sizes or
+printer resolutions, pass a `LabelConfig`:
+
+```python
+from labelconv import LabelConfig, build_zpl
+
+config = LabelConfig(width_in=2.0, height_in=1.0, dpi=300)
+print(build_zpl(label, config=config))
+```
+
+`width_in`/`height_in` become the label's `^PW`/`^LL` commands. `dpi` also
+scales the field positions, which are tuned in dots at 203 dpi -- printing
+those same dot values at a different resolution would move the text to the
+wrong physical spot on the label.
+
 Send the resulting string to a Zebra printer over raw TCP/9100, a USB queue,
 or whatever transport you're already using — this project only produces the
 ZPL text, it doesn't talk to printers.
@@ -71,9 +86,10 @@ reader — it expects the field order and line formats `build_zpl` uses.
 
 ## Status
 
-Handles the CSV -> ZPL direction for a standard 4x6 shipping label (name,
-address, weight, Code 128 tracking barcode, order number), plus a ZPL -> CSV
-reverse parse for labels this project generated. No dependencies beyond the
+Handles the CSV -> ZPL direction for a shipping label (name, address, weight,
+Code 128 tracking barcode, order number), plus a ZPL -> CSV reverse parse for
+labels this project generated. Defaults to 4x6 stock at 203 dpi but supports
+other sizes and resolutions via `LabelConfig`. No dependencies beyond the
 Python standard library.
 
 ## License

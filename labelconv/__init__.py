@@ -1,5 +1,13 @@
 from .record import LabelRecordError, ShippingLabel, load_csv, parse_csv, parse_row
-from .zpl import ZplParseError, build_zpl, escape_field, parse_zpl, unescape_field
+from .zpl import (
+    DEFAULT_CONFIG,
+    LabelConfig,
+    ZplParseError,
+    build_zpl,
+    escape_field,
+    parse_zpl,
+    unescape_field,
+)
 
 __all__ = [
     "ShippingLabel",
@@ -12,4 +20,6 @@ __all__ = [
     "parse_zpl",
     "unescape_field",
     "ZplParseError",
+    "LabelConfig",
+    "DEFAULT_CONFIG",
 ]

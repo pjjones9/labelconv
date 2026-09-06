@@ -2,7 +2,14 @@ import dataclasses
 import unittest
 
 from labelconv.record import LabelRecordError, ShippingLabel, parse_row
-from labelconv.zpl import ZplParseError, build_zpl, escape_field, parse_zpl, unescape_field
+from labelconv.zpl import (
+    LabelConfig,
+    ZplParseError,
+    build_zpl,
+    escape_field,
+    parse_zpl,
+    unescape_field,
+)
 
 BASE_ROW = {
     "recipient_name": "Jane Doe",
@@ -133,6 +140,34 @@ class TestBuildZpl(unittest.TestCase):
         zpl = build_zpl(make_label())
         self.assertTrue(zpl.startswith("^XA"))
         self.assertTrue(zpl.endswith("^XZ"))
+
+
+class TestLabelConfig(unittest.TestCase):
+    def test_default_is_4x6_at_203dpi(self):
+        zpl = build_zpl(make_label())
+        self.assertIn("^PW812", zpl)
+        self.assertIn("^LL1218", zpl)
+
+    def test_width_height_set_print_width_and_label_length(self):
+        config = LabelConfig(width_in=2.0, height_in=1.0, dpi=203)
+        zpl = build_zpl(make_label(), config=config)
+        self.assertIn("^PW406", zpl)
+        self.assertIn("^LL203", zpl)
+
+    def test_higher_dpi_scales_field_positions(self):
+        zpl_203 = build_zpl(make_label(), config=LabelConfig(dpi=203))
+        zpl_406 = build_zpl(make_label(), config=LabelConfig(dpi=406))
+        self.assertIn("^FO30,30^", zpl_203)
+        self.assertIn("^FO60,60^", zpl_406)
+
+    def test_non_default_config_still_round_trips(self):
+        config = LabelConfig(width_in=4.0, height_in=8.0, dpi=300)
+        label = make_label(address2="Apt 4B", order_number="PO-4471")
+        parsed = parse_zpl(build_zpl(label, config=config))
+        for field in dataclasses.fields(ShippingLabel):
+            if field.name == "service_level":
+                continue
+            self.assertEqual(getattr(parsed, field.name), getattr(label, field.name))
 
 
 class TestParseZpl(unittest.TestCase):

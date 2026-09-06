@@ -1,10 +1,47 @@
 from __future__ import annotations
 
+import dataclasses
 import re
 import string
 from typing import Tuple
 
 from .record import ShippingLabel
+
+# dpi build_zpl's field positions (the 30, 40, 45... constants below) were
+# measured against. Any other dpi scales those dot values so the label keeps
+# the same physical layout instead of shrinking or spilling off the stock.
+DEFAULT_DPI = 203
+
+
+@dataclasses.dataclass(frozen=True)
+class LabelConfig:
+    """Physical label stock size and printer resolution.
+
+    width_in/height_in become ZPL's ^PW (print width) and ^LL (label length)
+    commands, in dots. dpi also scales build_zpl's field positions, which
+    are all tuned in dots at DEFAULT_DPI -- printing those same dot values
+    at a different resolution would move the text to the wrong physical
+    spot on the label.
+    """
+
+    width_in: float = 4.0
+    height_in: float = 6.0
+    dpi: int = DEFAULT_DPI
+
+    @property
+    def width_dots(self) -> int:
+        return round(self.width_in * self.dpi)
+
+    @property
+    def height_dots(self) -> int:
+        return round(self.height_in * self.dpi)
+
+    @property
+    def scale(self) -> float:
+        return self.dpi / DEFAULT_DPI
+
+
+DEFAULT_CONFIG = LabelConfig()
 
 # ^ starts a ZPL format command and ~ starts a ZPL control command, so
 # either one appearing literally inside field data breaks the label. ZPL's
@@ -81,40 +118,48 @@ def _barcode_field(x: int, y: int, height: int, text: str) -> str:
     return f"^FO{x},{y}^BY2^BCN,{height},Y,N,N{hex_flag}^FD{escaped}^FS"
 
 
-def build_zpl(label: ShippingLabel) -> str:
+def build_zpl(label: ShippingLabel, config: LabelConfig = DEFAULT_CONFIG) -> str:
+    s = config.scale
+
+    def d(dots: float) -> int:
+        return round(dots * s)
+
+    x = d(30)
     lines = [
         "^XA",
+        f"^PW{config.width_dots}",
+        f"^LL{config.height_dots}",
         "^CI28",  # UTF-8 so accented names/addresses render instead of mojibake
     ]
 
-    y = 30
-    lines.append(_text_field(30, y, 40, 40, label.recipient_name))
-    y += 45
+    y = d(30)
+    lines.append(_text_field(x, y, d(40), d(40), label.recipient_name))
+    y += d(45)
 
-    lines.append(_text_field(30, y, 30, 30, label.address1))
-    y += 35
+    lines.append(_text_field(x, y, d(30), d(30), label.address1))
+    y += d(35)
 
     if label.address2:
-        lines.append(_text_field(30, y, 30, 30, label.address2))
-        y += 35
+        lines.append(_text_field(x, y, d(30), d(30), label.address2))
+        y += d(35)
 
     city_line = f"{label.city}, {label.state} {label.postal_code}"
-    lines.append(_text_field(30, y, 30, 30, city_line))
-    y += 35
+    lines.append(_text_field(x, y, d(30), d(30), city_line))
+    y += d(35)
 
-    lines.append(_text_field(30, y, 30, 30, label.country))
-    y += 45
+    lines.append(_text_field(x, y, d(30), d(30), label.country))
+    y += d(45)
 
     weight_line = f"{label.weight_oz:g} oz"
-    lines.append(_text_field(30, y, 25, 25, weight_line))
-    y += 50
+    lines.append(_text_field(x, y, d(25), d(25), weight_line))
+    y += d(50)
 
-    lines.append(_barcode_field(30, y, 80, label.tracking_number))
-    y += 110
+    lines.append(_barcode_field(x, y, d(80), label.tracking_number))
+    y += d(110)
 
     if label.order_number:
-        lines.append(_text_field(30, y, 20, 20, f"Order: {label.order_number}"))
-        y += 30
+        lines.append(_text_field(x, y, d(20), d(20), f"Order: {label.order_number}"))
+        y += d(30)
 
     lines.append("^XZ")
     return "\n".join(lines)
