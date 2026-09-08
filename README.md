@@ -66,6 +66,12 @@ scales the field positions, which are tuned in dots at 203 dpi -- printing
 those same dot values at a different resolution would move the text to the
 wrong physical spot on the label.
 
+Text fields (name, address lines, city/state/zip, country, order number) are
+truncated with a trailing `…` if they're too long to fit between their
+starting position and the label's right edge, based on the stock width in
+`LabelConfig`. This keeps long input from running off the label or
+overlapping the next line. The tracking number barcode is never truncated.
+
 Send the resulting string to a Zebra printer over raw TCP/9100, a USB queue,
 or whatever transport you're already using — this project only produces the
 ZPL text, it doesn't talk to printers.

@@ -58,6 +58,24 @@ ORDER_PREFIX = "Order: "
 
 _HEX_DIGITS = frozenset(string.hexdigits)
 
+# A0N is a fixed-width font, so the width passed to ^A0N is also the number
+# of dots each character occupies. That lets us work out how many characters
+# fit between a field's x position and the label's right edge, and truncate
+# text fields before they run off the stock or overlap the next line instead
+# of failing silently at print time.
+TRUNCATION_MARK = "…"
+
+
+def _truncate_to_width(text: str, x: int, char_width: int, config: LabelConfig) -> str:
+    available_dots = config.width_dots - x
+    max_chars = max(1, available_dots // char_width)
+    if len(text) <= max_chars:
+        return text
+    if max_chars == 1:
+        return text[:1]
+    return text[: max_chars - 1] + TRUNCATION_MARK
+
+
 # Matches one ^FO...^FD...^FS field, text or barcode, and captures whether
 # ^FH (hex-escape mode) was turned on and the raw (possibly escaped) field
 # data. Field data never contains a literal "^FS" -- any caret would have
@@ -106,7 +124,8 @@ def unescape_field(field_data: str, needs_hex: bool) -> str:
     return "".join(out)
 
 
-def _text_field(x: int, y: int, height: int, width: int, text: str) -> str:
+def _text_field(x: int, y: int, height: int, width: int, text: str, config: LabelConfig) -> str:
+    text = _truncate_to_width(text, x, width, config)
     escaped, needs_hex = escape_field(text)
     hex_flag = "^FH" if needs_hex else ""
     return f"^FO{x},{y}^A0N,{height},{width}{hex_flag}^FD{escaped}^FS"
@@ -133,32 +152,32 @@ def build_zpl(label: ShippingLabel, config: LabelConfig = DEFAULT_CONFIG) -> str
     ]
 
     y = d(30)
-    lines.append(_text_field(x, y, d(40), d(40), label.recipient_name))
+    lines.append(_text_field(x, y, d(40), d(40), label.recipient_name, config))
     y += d(45)
 
-    lines.append(_text_field(x, y, d(30), d(30), label.address1))
+    lines.append(_text_field(x, y, d(30), d(30), label.address1, config))
     y += d(35)
 
     if label.address2:
-        lines.append(_text_field(x, y, d(30), d(30), label.address2))
+        lines.append(_text_field(x, y, d(30), d(30), label.address2, config))
         y += d(35)
 
     city_line = f"{label.city}, {label.state} {label.postal_code}"
-    lines.append(_text_field(x, y, d(30), d(30), city_line))
+    lines.append(_text_field(x, y, d(30), d(30), city_line, config))
     y += d(35)
 
-    lines.append(_text_field(x, y, d(30), d(30), label.country))
+    lines.append(_text_field(x, y, d(30), d(30), label.country, config))
     y += d(45)
 
     weight_line = f"{label.weight_oz:g} oz"
-    lines.append(_text_field(x, y, d(25), d(25), weight_line))
+    lines.append(_text_field(x, y, d(25), d(25), weight_line, config))
     y += d(50)
 
     lines.append(_barcode_field(x, y, d(80), label.tracking_number))
     y += d(110)
 
     if label.order_number:
-        lines.append(_text_field(x, y, d(20), d(20), f"Order: {label.order_number}"))
+        lines.append(_text_field(x, y, d(20), d(20), f"Order: {label.order_number}", config))
         y += d(30)
 
     lines.append("^XZ")

@@ -3,6 +3,7 @@ import unittest
 
 from labelconv.record import LabelRecordError, ShippingLabel, parse_row
 from labelconv.zpl import (
+    TRUNCATION_MARK,
     LabelConfig,
     ZplParseError,
     build_zpl,
@@ -140,6 +141,41 @@ class TestBuildZpl(unittest.TestCase):
         zpl = build_zpl(make_label())
         self.assertTrue(zpl.startswith("^XA"))
         self.assertTrue(zpl.endswith("^XZ"))
+
+
+class TestTextTruncation(unittest.TestCase):
+    def test_short_recipient_name_is_untouched(self):
+        zpl = build_zpl(make_label(recipient_name="Jane Doe"))
+        self.assertIn("Jane Doe", zpl)
+        self.assertNotIn(TRUNCATION_MARK, zpl)
+
+    def test_long_recipient_name_is_truncated_with_mark(self):
+        # Default 4x6@203dpi: x=30, char width=40, label width=812 dots ->
+        # 19 characters fit, so anything past that gets cut with a mark.
+        zpl = build_zpl(make_label(recipient_name="A" * 30))
+        self.assertIn("A" * 18 + TRUNCATION_MARK, zpl)
+        self.assertNotIn("A" * 19, zpl)
+
+    def test_long_address_is_truncated(self):
+        zpl = build_zpl(make_label(address1="1234567890 Very Long Street Name"))
+        self.assertIn(TRUNCATION_MARK, zpl)
+        self.assertNotIn("1234567890 Very Long Street Name", zpl)
+
+    def test_narrower_stock_truncates_more_aggressively(self):
+        config = LabelConfig(width_in=1.0, height_in=1.0, dpi=203)
+        zpl = build_zpl(make_label(address1="123456789012345"), config=config)
+        self.assertIn(TRUNCATION_MARK, zpl)
+
+    def test_tracking_number_is_never_truncated(self):
+        long_tracking = "1Z" + "9" * 40
+        zpl = build_zpl(make_label(tracking_number=long_tracking))
+        self.assertIn(long_tracking, zpl)
+
+    def test_truncation_happens_before_hex_escaping(self):
+        # Truncate first, then escape -- otherwise a caret near the cutoff
+        # could get sliced in half between its "_5E" prefix and hex digits.
+        zpl = build_zpl(make_label(recipient_name="^" * 30))
+        self.assertIn("_5E" * 18 + TRUNCATION_MARK, zpl)
 
 
 class TestLabelConfig(unittest.TestCase):

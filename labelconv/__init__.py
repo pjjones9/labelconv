@@ -1,6 +1,7 @@
 from .record import LabelRecordError, ShippingLabel, load_csv, parse_csv, parse_row
 from .zpl import (
     DEFAULT_CONFIG,
+    TRUNCATION_MARK,
     LabelConfig,
     ZplParseError,
     build_zpl,
@@ -22,4 +23,5 @@ __all__ = [
     "ZplParseError",
     "LabelConfig",
     "DEFAULT_CONFIG",
+    "TRUNCATION_MARK",
 ]
