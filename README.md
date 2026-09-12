@@ -27,11 +27,18 @@ for label in labels:
 Expected CSV columns:
 
 ```
-recipient_name,address1,address2,city,state,postal_code,country,weight_oz,tracking_number,order_number,service_level
+recipient_name,address1,address2,city,state,postal_code,country,weight_oz,weight_unit,tracking_number,order_number,service_level
 ```
 
 `address2`, `order_number`, and `service_level` are optional and may be left
 blank. Everything else is required.
+
+`weight_oz` holds the numeric weight; `weight_unit` says what unit that
+number is in (`oz`, `lb`, or `kg`, case-insensitive) and defaults to `oz` if
+the column is left blank or missing entirely. This lets a CSV source that
+weighs packages in pounds or kilograms feed this converter without a
+pre-processing step -- the value is converted to ounces on the way into
+`ShippingLabel`, since that's what gets printed on the label.
 
 You can also build a label from data you already have in memory:
 

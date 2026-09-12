@@ -1,4 +1,13 @@
-from .record import LabelRecordError, ShippingLabel, load_csv, parse_csv, parse_row
+from .record import (
+    OUNCES_PER_KILOGRAM,
+    OUNCES_PER_POUND,
+    LabelRecordError,
+    ShippingLabel,
+    convert_to_oz,
+    load_csv,
+    parse_csv,
+    parse_row,
+)
 from .zpl import (
     DEFAULT_CONFIG,
     TRUNCATION_MARK,
@@ -16,6 +25,9 @@ __all__ = [
     "load_csv",
     "parse_csv",
     "parse_row",
+    "convert_to_oz",
+    "OUNCES_PER_POUND",
+    "OUNCES_PER_KILOGRAM",
     "build_zpl",
     "escape_field",
     "parse_zpl",

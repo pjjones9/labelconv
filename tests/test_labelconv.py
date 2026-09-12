@@ -1,7 +1,7 @@
 import dataclasses
 import unittest
 
-from labelconv.record import LabelRecordError, ShippingLabel, parse_row
+from labelconv.record import LabelRecordError, ShippingLabel, convert_to_oz, parse_row
 from labelconv.zpl import (
     TRUNCATION_MARK,
     LabelConfig,
@@ -21,6 +21,7 @@ BASE_ROW = {
     "postal_code": "62704",
     "country": "US",
     "weight_oz": "16",
+    "weight_unit": "",
     "tracking_number": "1Z999AA10123456784",
     "order_number": "",
     "service_level": "",
@@ -94,6 +95,39 @@ class TestParseRow(unittest.TestCase):
                 else:
                     with self.assertRaises(expected_exc):
                         parse_row(row)
+
+
+class TestWeightUnitConversion(unittest.TestCase):
+    def test_missing_weight_unit_column_defaults_to_oz(self):
+        row = dict(BASE_ROW)
+        del row["weight_unit"]
+        label = parse_row(row)
+        self.assertEqual(label.weight_oz, 16.0)
+
+    def test_blank_weight_unit_defaults_to_oz(self):
+        label = parse_row(row_with(weight_unit=""))
+        self.assertEqual(label.weight_oz, 16.0)
+
+    def test_lb_is_converted_to_oz(self):
+        label = parse_row(row_with(weight_oz="2", weight_unit="lb"))
+        self.assertEqual(label.weight_oz, 32.0)
+
+    def test_kg_is_converted_to_oz(self):
+        label = parse_row(row_with(weight_oz="1", weight_unit="kg"))
+        self.assertAlmostEqual(label.weight_oz, 35.27396195)
+
+    def test_unit_is_case_and_whitespace_insensitive(self):
+        label = parse_row(row_with(weight_oz="1", weight_unit=" KG "))
+        self.assertAlmostEqual(label.weight_oz, 35.27396195)
+
+    def test_unsupported_unit_raises(self):
+        with self.assertRaises(LabelRecordError):
+            parse_row(row_with(weight_unit="stone"))
+
+    def test_convert_to_oz_helper(self):
+        self.assertEqual(convert_to_oz(1, "oz"), 1.0)
+        self.assertEqual(convert_to_oz(1, "lb"), 16.0)
+        self.assertAlmostEqual(convert_to_oz(1, "kg"), 35.27396195)
 
 
 def make_label(**overrides):

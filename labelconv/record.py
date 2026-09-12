@@ -23,6 +23,28 @@ class LabelRecordError(ValueError):
     """A CSV row could not be turned into a ShippingLabel."""
 
 
+# ShippingLabel.weight_oz is always ounces -- these let a CSV source that
+# ships weights in pounds or kilograms (a lot of freight/scale exports do)
+# say so via an optional weight_unit column instead of pre-converting.
+OUNCES_PER_POUND = 16.0
+OUNCES_PER_KILOGRAM = 35.27396195
+
+_WEIGHT_UNITS_TO_OUNCES = {
+    "oz": 1.0,
+    "lb": OUNCES_PER_POUND,
+    "kg": OUNCES_PER_KILOGRAM,
+}
+
+
+def convert_to_oz(value: float, unit: str) -> float:
+    """Convert a weight of the given unit ("oz", "lb", or "kg") to ounces."""
+    try:
+        factor = _WEIGHT_UNITS_TO_OUNCES[unit.strip().lower()]
+    except KeyError:
+        raise LabelRecordError(f"unsupported weight_unit: {unit!r}") from None
+    return value * factor
+
+
 @dataclasses.dataclass
 class ShippingLabel:
     recipient_name: str
@@ -47,9 +69,12 @@ def parse_row(row: dict) -> ShippingLabel:
 
     raw_weight = row["weight_oz"].strip()
     try:
-        weight_oz = float(raw_weight)
+        weight_value = float(raw_weight)
     except ValueError as exc:
         raise LabelRecordError(f"weight_oz is not a number: {raw_weight!r}") from exc
+
+    weight_unit = (row.get("weight_unit") or "oz").strip()
+    weight_oz = convert_to_oz(weight_value, weight_unit)
 
     return ShippingLabel(
         recipient_name=row["recipient_name"].strip(),
