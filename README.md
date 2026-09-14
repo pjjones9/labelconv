@@ -97,13 +97,36 @@ label = parse_zpl(zpl_text)
 reader — it expects the field order and line formats `build_zpl` uses.
 `service_level` isn't written to the label, so it always comes back empty.
 
+## Command line
+
+For batch conversion without writing any Python, `labelconv` also installs
+as a script:
+
+```
+labelconv orders.csv -o labels.zpl
+```
+
+Reads CSV from a file (or stdin, if you omit the path or pass `-`) and
+writes concatenated ZPL to a file (or stdout, if you omit `-o`). Each row
+becomes one complete `^XA...^XZ` label, so the output is safe to spool to a
+printer as-is. `--width-in`, `--height-in`, and `--dpi` mirror the
+`LabelConfig` fields above:
+
+```
+labelconv orders.csv -o labels.zpl --width-in 2.0 --height-in 1.0 --dpi 300
+```
+
+A row that fails validation (missing required field, unparseable weight) is
+reported to stderr with its line number and skipped; the rest of the batch
+still converts. The exit code is 1 if any row was skipped, 0 otherwise.
+
 ## Status
 
 Handles the CSV -> ZPL direction for a shipping label (name, address, weight,
 Code 128 tracking barcode, order number), plus a ZPL -> CSV reverse parse for
 labels this project generated. Defaults to 4x6 stock at 203 dpi but supports
-other sizes and resolutions via `LabelConfig`. No dependencies beyond the
-Python standard library.
+other sizes and resolutions via `LabelConfig`. Ships a `labelconv` CLI for
+batch conversion. No dependencies beyond the Python standard library.
 
 ## License
 
