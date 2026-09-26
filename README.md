@@ -97,6 +97,21 @@ label = parse_zpl(zpl_text)
 reader — it expects the field order and line formats `build_zpl` uses.
 `service_level` isn't written to the label, so it always comes back empty.
 
+There's also a plain-text preview, useful in tests and for eyeballing a
+layout change without spooling anything to a printer:
+
+```python
+from labelconv import render_preview
+
+print(render_preview(build_zpl(label)))
+```
+
+This lays each field out on an ASCII grid sized to the label's `LabelConfig`,
+one character per field character. It's a layout simulation, not a rendering
+of the actual printed output — no font metrics, no real barcode symbology,
+just enough to see at a glance which row and roughly which column each field
+landed on.
+
 ## Command line
 
 For batch conversion without writing any Python, `labelconv` also installs

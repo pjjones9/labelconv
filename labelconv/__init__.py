@@ -1,3 +1,4 @@
+from .preview import render_preview
 from .record import (
     OUNCES_PER_KILOGRAM,
     OUNCES_PER_POUND,
@@ -36,4 +37,5 @@ __all__ = [
     "LabelConfig",
     "DEFAULT_CONFIG",
     "TRUNCATION_MARK",
+    "render_preview",
 ]
