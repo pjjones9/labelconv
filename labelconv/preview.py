@@ -19,19 +19,36 @@ _PREVIEW_FIELD_RE = re.compile(
 )
 
 
+_LABEL_RE = re.compile(r"\^XA.*?\^XZ", re.DOTALL)
+
+
 def render_preview(
     zpl_text: str,
     config: LabelConfig = DEFAULT_CONFIG,
     row_dots: int = _ROW_DOTS,
     col_dots: int = _COL_DOTS,
 ) -> str:
-    """Render ^XA...^XZ ZPL (as produced by build_zpl) into an ASCII grid.
+    """Render ZPL (as produced by build_zpl) into an ASCII grid.
 
     row_dots/col_dots set how many printer dots each preview cell covers --
     smaller values give a bigger, more precise grid at the cost of a wider
     string. Barcode fields are wrapped in "|...|" since there's no real
     Code 128 rendering here, just a marker that something was printed there.
+
+    The CLI emits a batch as several ^XA...^XZ blocks back to back. Each block
+    gets its own grid, separated by a rule as wide as the label; drawing them
+    onto one grid would stack every label's fields on top of each other.
+    Text with no complete block is rendered as a single label.
     """
+    blocks = _LABEL_RE.findall(zpl_text) or [zpl_text]
+    cols = max(1, config.width_dots // col_dots)
+    grids = [_render_block(block, config, row_dots, col_dots) for block in blocks]
+    return ("\n" + "-" * cols + "\n").join(grids)
+
+
+def _render_block(
+    zpl_text: str, config: LabelConfig, row_dots: int, col_dots: int
+) -> str:
     cols = max(1, config.width_dots // col_dots)
     rows = max(1, config.height_dots // row_dots)
     grid = [[" "] * cols for _ in range(rows)]

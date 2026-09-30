@@ -64,6 +64,28 @@ class TestRenderPreview(unittest.TestCase):
         for line in preview.split("\n"):
             self.assertLessEqual(len(line), config.width_dots // 20)
 
+    def test_batch_renders_one_grid_per_label(self):
+        zpl = build_zpl(make_label()) + "\n" + build_zpl(make_label(recipient_name="John Roe"))
+        preview = render_preview(zpl)
+        cols = LabelConfig().width_dots // 20
+        sections = preview.split("\n" + "-" * cols + "\n")
+        self.assertEqual(len(sections), 2)
+        self.assertIn("Jane Doe", sections[0])
+        self.assertNotIn("John Roe", sections[0])
+        self.assertIn("John Roe", sections[1])
+        self.assertNotIn("Jane Doe", sections[1])
+
+    def test_batch_labels_do_not_overwrite_each_other(self):
+        zpl = build_zpl(make_label(recipient_name="AAAA")) + build_zpl(
+            make_label(recipient_name="BB")
+        )
+        preview = render_preview(zpl)
+        self.assertIn("AAAA", preview)
+        self.assertIn("BB", preview)
+
+    def test_single_label_has_no_separator(self):
+        self.assertNotIn("----", render_preview(build_zpl(make_label())))
+
     def test_unrelated_zpl_renders_blank_grid(self):
         preview = render_preview("^XA^XZ")
         self.assertEqual(preview.strip("\n "), "")

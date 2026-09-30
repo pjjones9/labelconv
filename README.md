@@ -112,6 +112,9 @@ of the actual printed output — no font metrics, no real barcode symbology,
 just enough to see at a glance which row and roughly which column each field
 landed on.
 
+If the ZPL holds several `^XA...^XZ` labels (like the CLI's output), each one
+is drawn on its own grid and the grids are separated by a line of dashes.
+
 ## Command line
 
 For batch conversion without writing any Python, `labelconv` also installs
